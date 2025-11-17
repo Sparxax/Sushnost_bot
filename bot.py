@@ -35,7 +35,7 @@ async def handle_suggestion(message: types.Message):
     GROUP_MSG_MAP[copied.message_id] = message.from_user.id
 
     # Подтверждение пользователю
-    await message.reply("✅ Ваша предложка отправлена в группу на рассмотрение.")
+    await message.reply("✅ Ваша предложка отправлена на рассмотрение.")
 
 # Ответ из группы → пользователю
 @dp.message_handler(content_types=types.ContentTypes.TEXT,
@@ -46,10 +46,11 @@ async def reply_from_group(message: types.Message):
         user_id = GROUP_MSG_MAP.get(replied_id)
 
         if user_id:
-            await bot.send_message(user_id, f"💬 Ответ из группы:\n{message.text}")
+            await bot.send_message(user_id, f"💬 Ответ от администратора:\n{message.text}")
         else:
             await message.reply("⚠️ Не найдено соответствие пользователю. Ответьте именно на скопированное сообщение предложки.")
 
 if __name__ == "__main__":
     print("Bot started...")
     executor.start_polling(dp, skip_updates=True)
+
