@@ -2,51 +2,55 @@ import logging
 from aiogram import Bot, Dispatcher, executor, types
 
 API_TOKEN = "6428280685:AAGbtirZz3zlaw9LouJVkaNvln-gOh85blI"
-
-# список админов (твои ID + ID других админов)
-ADMINS = [5231769401]  
-# если хочешь пересылку в группу, укажи ID группы (со знаком минус)
-GROUP_ID = -1002394380486  
+GROUP_ID = -1002394380486  # ID вашей группы
 
 logging.basicConfig(level=logging.INFO)
-
-bot = Bot(token=API_TOKEN)
+bot = Bot(token=API_TOKEN, parse_mode="HTML")
 dp = Dispatcher(bot)
 
-# Приветствие
-@dp.message_handler(commands=["start"])
+# Маппинг: message_id в группе -> user_id
+GROUP_MSG_MAP = {}
+
+def format_user_info(user: types.User) -> str:
+    username = f"@{user.username}" if user.username else "(нет username)"
+    return f"ID: <code>{user.id}</code>\nUsername: {username}\nИмя: {user.full_name}"
+
+@dp.message_handler(commands=["start"], chat_type=types.ChatType.PRIVATE)
 async def send_welcome(message: types.Message):
     await message.reply("👋 Привет! Отправь сюда свою предложку (текст, фото, видео).")
 
-# Приём предложки
-@dp.message_handler(content_types=types.ContentTypes.ANY)
+# Приём предложки и пересылка в группу
+@dp.message_handler(content_types=types.ContentTypes.ANY, chat_type=types.ChatType.PRIVATE)
 async def handle_suggestion(message: types.Message):
-    user_info = f"ID: {message.from_user.id}\n" \
-                f"Username: @{message.from_user.username}\n" \
-                f"Имя: {message.from_user.full_name}"
+    user_info = format_user_info(message.from_user)
+    header = f"📩 Новая предложка\n{user_info}"
 
-    # уведомление пользователю
-    await message.reply("✅ Ваша предложка отправлена на рассмотрение, ожидайте.")
+    # Заголовок в группу
+    header_msg = await bot.send_message(GROUP_ID, header)
 
-    # пересылка админам
-    for admin_id in ADMINS:
-        await bot.send_message(admin_id, f"📩 Новая предложка:\n{user_info}")
-        await message.copy_to(admin_id)
+    # Копия контента в группу как ответ на заголовок
+    copied = await message.copy_to(GROUP_ID, reply_to_message_id=header_msg.message_id)
 
-    # пересылка в группу (если нужно)
-    if GROUP_ID:
-        await bot.send_message(GROUP_ID, f"📩 Новая предложка:\n{user_info}")
-        await message.copy_to(GROUP_ID)
+    # Сохраняем соответствие: ID сообщения в группе -> ID пользователя
+    GROUP_MSG_MAP[copied.message_id] = message.from_user.id
 
-# Ответ пользователю через бота
-@dp.message_handler(content_types=types.ContentTypes.TEXT, chat_type=[types.ChatType.SUPERGROUP, types.ChatType.GROUP])
-async def reply_to_user(message: types.Message):
-    if message.reply_to_message and message.from_user.id in ADMINS:
-        if message.reply_to_message.forward_from:
-            user_id = message.reply_to_message.forward_from.id
-            await bot.send_message(user_id, f"💬 Ответ от админа:\n{message.text}")
+    # Подтверждение пользователю
+    await message.reply("✅ Ваша предложка отправлена в группу на рассмотрение.")
 
-# 🚀 Запуск бота
+# Ответ из группы → пользователю
+@dp.message_handler(content_types=types.ContentTypes.TEXT,
+                    chat_type=[types.ChatType.SUPERGROUP, types.ChatType.GROUP])
+async def reply_from_group(message: types.Message):
+    if message.reply_to_message:
+        replied_id = message.reply_to_message.message_id
+        user_id = GROUP_MSG_MAP.get(replied_id)
+
+        if user_id:
+            await bot.send_message(user_id, f"💬 Ответ из группы:\n{message.text}")
+        else:
+            await message.reply("⚠️ Не найдено соответствие пользователю. Ответьте именно на скопированное сообщение предложки.")
+
 if __name__ == "__main__":
     print("Bot started...")
     executor.start_polling(dp, skip_updates=True)
+
