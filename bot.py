@@ -1,7 +1,7 @@
 import logging
 from aiogram import Bot, Dispatcher, executor, types
 
-API_TOKEN = "6428280685:AAGbtirZz3zlaw9LouJVkaNvln-gOh85blIТА"
+API_TOKEN = "6428280685:AAGbtirZz3zlaw9LouJVkaNvln-gOh85blI"
 
 # список админов (твои ID + ID других админов)
 ADMINS = [5231769401]  
