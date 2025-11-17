@@ -41,9 +41,12 @@ async def handle_suggestion(message: types.Message):
 # Ответ пользователю через бота
 @dp.message_handler(content_types=types.ContentTypes.TEXT, chat_type=[types.ChatType.SUPERGROUP, types.ChatType.GROUP])
 async def reply_to_user(message: types.Message):
-    # проверяем, что это ответ на пересланное сообщение
     if message.reply_to_message and message.from_user.id in ADMINS:
-        # достаём ID оригинального автора
         if message.reply_to_message.forward_from:
             user_id = message.reply_to_message.forward_from.id
             await bot.send_message(user_id, f"💬 Ответ от админа:\n{message.text}")
+
+# 🚀 Запуск бота
+if __name__ == "__main__":
+    print("Bot started...")
+    executor.start_polling(dp, skip_updates=True)
